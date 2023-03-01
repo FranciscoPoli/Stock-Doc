@@ -1,0 +1,9 @@
+pandas==1.5.3
+plotly==5.13.0
+plotly-express==0.4.1
+protobuf==3.20.3
+Pyrebase4==4.6.0
+streamlit==1.18.1
+streamlit-extras==0.2.6
+streamlit-option-menu==0.3.2
+yahoo-fin==0.8.9.1
