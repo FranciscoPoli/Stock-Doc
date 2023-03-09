@@ -255,19 +255,31 @@ if ticker != "":
     # margins['Operating Margin'] = (margins['operatingIncome'] / margins['totalRevenue']) * 100
     margins = margins.drop('totalRevenue', axis=1).drop('operatingIncome', axis=1)\
         .drop('grossProfit', axis=1).drop('netIncome', axis=1)
+    
+    ebitda = db_financials.loc[['operatingIncome', 'depreciationDepletionAndAmortization']].astype(float).transpose()
+    ebitda['EBITDA'] = ebitda['operatingIncome'] + ebitda['depreciationDepletionAndAmortization']
+    ebitda = ebitda['EBITDA']
+
+    ebit = db_financials.loc['operatingIncome'].astype(float)
+    ebit = ebit.rename('EBIT')
+    
+    interest = db_financials.loc['interestExpense'].astype(float)
+    interest = interest.rename('Interest')
+    
+    fcf = pd.concat([ebitda.reindex(ebit.index), ebit, free_cash_flow2.reindex(ebit.index), interest.reindex(ebit.index)], axis=1)
 
     dividends_annual = pd.DataFrame()
 
     col11, col12, col13 = st.columns([1, 1, 1])
 
     with col11:
-        st.plotly_chart(bar_graph(revenues, 'Revenue and Income'))
+        st.plotly_chart(bar_graph(revenues, 'Revenue and Net Income'))
         st.plotly_chart(bar_graph(rev_pctchange, 'Revenue growth %'))
         st.plotly_chart(bar_graph(sharesoutstanding, 'Shares Outstanding'))
 
     with col12:
         st.plotly_chart(bar_graph(margins, 'Gross and Net Margin %'))
-        st.plotly_chart(bar_graph(free_cash_flow2, 'Free Cash Flow'))
+        st.plotly_chart(bar_graph(fcf, 'EBITDA, EBIT, FCF vs Interest Expense'))
         if quarter and dividends.empty is False:
             dividends['index'] = pd.to_datetime(dividends['index']).dt.to_period('Q').dt.strftime('Q%q %Y')
             dividend_quarter = dividends.drop('ticker', axis=1).set_index('index')
@@ -275,7 +287,7 @@ if ticker != "":
 
 
         elif dividends.empty is True:
-            st.subheader('Company has no dividends')
+            st.subheader('Company pays no dividends')
 
         else:
             dividends_annual = dividends
@@ -286,7 +298,7 @@ if ticker != "":
 
 
     with col13:
-        st.plotly_chart(bar_graph(cash_debt, 'Cash and Debt'))
+        st.plotly_chart(bar_graph(cash_debt, 'Cash vs Long Debt'))
         st.plotly_chart(bar_graph(capex, 'CAPEX'))
         if dividends.empty is False:
             dividend_quarter = dividends.drop('ticker', axis=1).set_index('index')
@@ -331,6 +343,8 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
         finalcapex = pd.DataFrame()
         finalfcf = pd.DataFrame()
         finaldebt = pd.DataFrame()
+        finalebitda = pd.DataFrame()
+        finalebit = pd.DataFrame()
 
         start = ''
         end = ''
@@ -413,7 +427,15 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
             debt = db_financials.loc['longTermDebtNoncurrent'].astype(float)
             debt = debt.rename(ticker)
             finaldebt[ticker] = debt
-
+            
+            ebitda = db_financials.loc[['operatingIncome', 'depreciationDepletionAndAmortization']].astype(float).transpose()
+            ebitda[ticker] = ebitda['operatingIncome'] + ebitda['depreciationDepletionAndAmortization']
+            ebitda = ebitda[ticker].astype(float)
+            finalebitda[ticker] = ebitda
+            
+            ebit = db_financials.loc['operatingIncome'].astype(float)
+            ebit = ebit.rename(ticker)
+            finalebit[ticker] = ebit
 
 
         col11, col12, col13 = st.columns([1, 1, 1])
@@ -422,11 +444,13 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
             st.plotly_chart(bar_graph(finalrevenue, 'Revenue'))
             st.plotly_chart(bar_graph(finalgrossmargins, 'Gross Margins %'))
             st.plotly_chart(bar_graph(finalcash, 'Cash'))
+            st.plotly_chart(bar_graph(finalebitda, 'EBITDA'))
 
         with col12:
             st.plotly_chart(bar_graph(finalnetincome, 'Net Income'))
             st.plotly_chart(bar_graph(finalmargins, 'Net Margins %'))
-            st.plotly_chart(bar_graph(finaldebt, 'Debt'))
+            st.plotly_chart(bar_graph(finaldebt, 'Long Debt'))
+            st.plotly_chart(bar_graph(finalebit, 'EBIT'))
 
         with col13:
             st.plotly_chart(bar_graph(finalfcf, 'FCF'))
@@ -502,14 +526,14 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
                     valuation = ocf.asfreq('D').interpolate(method='linear', limit_direction='forward')
                     
             elif dropdown == "Price to EBITDA (P/EBITDA)":
-                ebitda = quarter.loc[:, ['operatingIncome', 'depreciationDepletionAndAmortization']].astype(float)
-                ebitda['Metric'] = ebitda['operatingIncome'] + ebitda['depreciationDepletionAndAmortization']
-                ebitda = ebitda['Metric'].rolling(4).sum(numeric_only=True)
-                ebitda[today] = ebitda[-1]
-                if (ebitda.values < 0).any():
-                    valuation = ebitda.asfreq('D', method='ffill')
+                ebitda1 = quarter.loc[:, ['operatingIncome', 'depreciationDepletionAndAmortization']].astype(float)
+                ebitda1['Metric'] = ebitda1['operatingIncome'] + ebitda1['depreciationDepletionAndAmortization']
+                ebitda1 = ebitda1['Metric'].rolling(4).sum(numeric_only=True)
+                ebitda1[today] = ebitda1[-1]
+                if (ebitda1.values < 0).any():
+                    valuation = ebitda1.asfreq('D', method='ffill')
                 else:
-                    valuation = ebitda.asfreq('D').interpolate(method='linear', limit_direction='forward')
+                    valuation = ebitda1.asfreq('D').interpolate(method='linear', limit_direction='forward')
                     
             elif dropdown == "Price to Earnings Before Tax (P/EBT)":
                 ebt = quarter['incomeBeforeTax'].astype(float).rolling(4).sum()
