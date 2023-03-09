@@ -78,13 +78,15 @@ def bar_graph(df, title):
     bar_chart.update_layout(plot_bgcolor='rgba(0,0,0,0)',
                             xaxis=dict(title=''),
                             yaxis=dict(title=''),
-                            hoverlabel=dict(font=dict(color='white'))
+                            hoverlabel=dict(font=dict(color='white')),
+                            bargroupgap=0.15,
+                            bargap=0.25
                             )
 
 
-    bar_chart.update_traces(width=.4)
-    if not isinstance(df, pd.Series) and len(df.columns) >= 3:
-        bar_chart.update_traces(width=.2)
+    #bar_chart.update_traces(width=.4)
+    #if not isinstance(df, pd.Series) and len(df.columns) >= 3:
+    #    bar_chart.update_traces(width=.2)
 
     if title == 'Shares Outstanding':
         min = df.min()*0.95
