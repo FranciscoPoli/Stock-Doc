@@ -17,7 +17,7 @@ def connect_db():
     return db
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=64800)
 def get_data(ticker):
     db = connect_db()
 
@@ -42,7 +42,7 @@ def get_data(ticker):
     return [dfannual, dfquarter, stats]
 
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=64800)
 def get_ticker_list():
     db = connect_db()
     reading = db.child('allnames').child('list').get().val()
@@ -182,7 +182,7 @@ if ticker != "":
               quarterly.set_index('endDate')['capitalExpenditures'].astype(float).rolling(4).sum()[-1]
         price_to_FCF = (mkt_cap / fcf).round(2)
         earnings = quarterly.set_index('endDate')['netIncome'].astype(float).rolling(4).sum()[-1]
-        roa = earnings / quarterly.set_index('endDate')['totalAssets'].astype(float)[-1]
+        roa = earnings / quarterly.set_index('endDate')['totalAssets'].astype(float).rolling(4).mean()[-1]
         st.write(f'Market Cap:  {stats.iloc[0,1]}')
         st.write(f'PEG Ratio:  {stats.iloc[4,1]}')
         st.write(f'ROA:  {(roa*100).round(2)}%')
@@ -190,7 +190,7 @@ if ticker != "":
 
     with right_column3:
         cashflowyield = ((fcf / mkt_cap)*100).round(2)
-        roe = earnings / quarterly.set_index('endDate')['totalShareholderEquity'].astype(float)[-1]
+        roe = earnings / quarterly.set_index('endDate')['totalShareholderEquity'].astype(float).rolling(4).mean()[-1]
         st.write(f'Trailing P/E:  {(mkt_cap/earnings).round(2)}')
         st.write(f'Forward P/E:  {stats.iloc[3,1]}')
         st.write(f'ROE:  {(roe * 100).round(2)}%')
