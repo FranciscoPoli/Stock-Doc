@@ -83,11 +83,6 @@ def bar_graph(df, title):
                             bargap=0.25
                             )
 
-
-    #bar_chart.update_traces(width=.4)
-    #if not isinstance(df, pd.Series) and len(df.columns) >= 3:
-    #    bar_chart.update_traces(width=.2)
-
     if title == 'Shares Outstanding':
         min = df.min()*0.95
         max = df.max()
@@ -232,10 +227,20 @@ if ticker != "":
     rev_pctchange = (db_financials.loc['totalRevenue'].astype(float).pct_change()) * 100
     rev_pctchange = rev_pctchange.rename("Growth %")
 
-
-    sharesoutstanding = db_financials.loc['commonStockSharesOutstanding'].astype(float)
-    sharesoutstanding = sharesoutstanding.rename("Shares")
-
+    sharesoutstanding = db_financials.loc['commonStockSharesOutstanding'].astype(float).reset_index()
+    sharesoutstanding['division'] = sharesoutstanding['commonStockSharesOutstanding'].div(sharesoutstanding['commonStockSharesOutstanding'].shift(1))
+    sharesoutstanding['division'] = sharesoutstanding['division'].shift(-1).fillna(1)
+    sharesoutstanding.loc[sharesoutstanding["division"] < 1.5, "division"] = pd.NA
+    
+    if not quarter:
+        quartershares = quarterly['commonStockSharesOutstanding'].astype(float)
+        quartershares['division'] = quartershares.div(quartershares.shift(1))
+        maxvalue = quartershares['division'].max(skipna=True)
+        sharesoutstanding.loc[sharesoutstanding["division"] > 1.5, "division"] = maxvalue
+        
+    sharesoutstanding = sharesoutstanding.bfill().fillna(1)
+    sharesoutstanding['Shares'] = sharesoutstanding['commonStockSharesOutstanding'] * sharesoutstanding['division'].round()
+    sharesoutstanding = sharesoutstanding.set_index('endDate')['Shares']
 
     if (db_financials.loc['longTermDebtNoncurrent'] == 0).all():
         db_financials.loc['longTermDebtNoncurrent'] = db_financials.loc['longTermDebt']
@@ -467,10 +472,6 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
                        "Price to EBITDA (P/EBITDA)", "Price to Earnings Before Tax (P/EBT)", "Price to Sales (P/S)"]
             dropdown = st.selectbox("Select Valuation metric", metrics)
 
-        # date_tickers = []
-        # for ticker in tickers:
-        #     min_date = pd.read_sql(ticker, annualengine).replace('None', pd.NA).fillna(0)['endDate'].min()
-        #     date_tickers.append([min_date, ticker])
 
         for ticker in tickers:
             annual, quarter, _ = get_data(ticker)
@@ -486,7 +487,7 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
             df['division'] = df['division'].shift(-1).fillna(1)
             df.loc[df["division"] < 1.5, "division"] = pd.NA
             df = df.bfill().fillna(1)
-            df['commonStockSharesOutstanding'] = df['commonStockSharesOutstanding'] * df['division']
+            df['commonStockSharesOutstanding'] = df['commonStockSharesOutstanding'] * df['division'].round()
             df = df.set_index('endDate')['commonStockSharesOutstanding']
             df = df.asfreq('D', method='ffill')  # .interpolate(method='values', limit_direction='forward')
 
