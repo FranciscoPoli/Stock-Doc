@@ -256,12 +256,13 @@ if ticker != "":
     free_cash_flow2['FCF'] = free_cash_flow2['operatingCashflow'] - free_cash_flow2['CAPEX']
     free_cash_flow2 = free_cash_flow2['FCF']
 
-    margins = db_financials.loc[['totalRevenue', 'operatingIncome', 'grossProfit', 'netIncome']].astype(float).transpose()
+    margins = db_financials.loc[['totalRevenue', 'operatingIncome', 'costofGoodsAndServicesSold', 'netIncome']].astype(float).transpose()
+    margins['grossProfit'] = margins['totalRevenue'] - margins['costofGoodsAndServicesSold']
     margins['Gross Margin'] = (margins['grossProfit'] / margins['totalRevenue']) * 100
     margins['Net Margin'] = (margins['netIncome'] / margins['totalRevenue']) * 100
     # margins['Operating Margin'] = (margins['operatingIncome'] / margins['totalRevenue']) * 100
     margins = margins.drop('totalRevenue', axis=1).drop('operatingIncome', axis=1)\
-        .drop('grossProfit', axis=1).drop('netIncome', axis=1)
+        .drop('grossProfit', axis=1).drop('netIncome', axis=1).drop('costofGoodsAndServicesSold', axis=1)
     
     ebitda = db_financials.loc[['operatingIncome', 'depreciationDepletionAndAmortization']].astype(float).transpose()
     ebitda['EBITDA'] = ebitda['operatingIncome'] + ebitda['depreciationDepletionAndAmortization']
@@ -410,7 +411,8 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
             netmargins = netmargins[ticker].astype(float)
             finalmargins[ticker] = netmargins
 
-            grossmargins = db_financials.loc[['totalRevenue', 'grossProfit']].astype(float).transpose()
+            grossmargins = db_financials.loc[['totalRevenue', 'costofGoodsAndServicesSold']].astype(float).transpose()
+            grossmargins['grossProfit'] = grossmargins['totalRevenue'] - grossmargins['costofGoodsAndServicesSold']
             grossmargins[ticker] = (grossmargins['grossProfit'] / grossmargins['totalRevenue']) * 100
             grossmargins = grossmargins[ticker].astype(float)
             finalgrossmargins[ticker] = grossmargins
