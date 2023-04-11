@@ -226,20 +226,32 @@ if ticker != "":
 
     rev_pctchange = (db_financials.loc['totalRevenue'].astype(float).pct_change()) * 100
     rev_pctchange = rev_pctchange.rename("Growth %")
-
+    
+    split_multiplier = []
+    if not quarter:
+        quartershares = quarterly.set_index('endDate').transpose()
+        quartershares = quartershares.loc['commonStockSharesOutstanding'].astype(float).reset_index()
+        quartershares['division'] = quartershares['commonStockSharesOutstanding'].div(quartershares['commonStockSharesOutstanding'].shift(1))
+        split_multiplier = quartershares[quartershares["division"] > 1.5].loc[:, 'division'].tolist()
+        split_multiplier.reverse()
+        
+    
     sharesoutstanding = db_financials.loc['commonStockSharesOutstanding'].astype(float).reset_index()
     sharesoutstanding['division'] = sharesoutstanding['commonStockSharesOutstanding'].div(sharesoutstanding['commonStockSharesOutstanding'].shift(1))
-    sharesoutstanding['division'] = sharesoutstanding['division'].shift(-1).fillna(1)
-    sharesoutstanding.loc[sharesoutstanding["division"] < 1.5, "division"] = pd.NA
     
-    if not quarter:
-        quartershares = quarterly['commonStockSharesOutstanding'].astype(float)
-        quartershares['division'] = quartershares.div(quartershares.shift(1))
-        maxvalue = quartershares['division'].max(skipna=True)
-        sharesoutstanding.loc[sharesoutstanding["division"] > 1.5, "division"] = maxvalue
+    i = 0
+    while(sharesoutstanding['division'] > 1.5).any():
+        sharesoutstanding['division'] = sharesoutstanding['division'].shift(-1).fillna(1)
+        sharesoutstanding.loc[sharesoutstanding["division"] < 1.5, "division"] = pd.NA
+        if not quarter:
+            sharesoutstanding.loc[sharesoutstanding["division"] > 1.5, "division"] = split_multiplier[i]
+            i = i + 1
         
-    sharesoutstanding = sharesoutstanding.bfill().fillna(1)
-    sharesoutstanding['Shares'] = sharesoutstanding['commonStockSharesOutstanding'] * sharesoutstanding['division'].round()
+        sharesoutstanding = sharesoutstanding.bfill().fillna(1)
+        sharesoutstanding['commonStockSharesOutstanding'] = sharesoutstanding['commonStockSharesOutstanding'] * sharesoutstanding['division'].round()
+        sharesoutstanding['division'] = sharesoutstanding['commonStockSharesOutstanding'].div(sharesoutstanding['commonStockSharesOutstanding'].shift(1))
+    
+    sharesoutstanding['Shares'] = sharesoutstanding['commonStockSharesOutstanding']
     sharesoutstanding = sharesoutstanding.set_index('endDate')['Shares']
 
     if (db_financials.loc['longTermDebtNoncurrent'] == 0).all():
@@ -486,10 +498,14 @@ elif selection == "Compare Stock Valuation metrics and Fundamentals" and multise
             df[today] = df[-1]
             df = df.reset_index()
             df['division'] = df['commonStockSharesOutstanding'].div(df['commonStockSharesOutstanding'].shift(1))
-            df['division'] = df['division'].shift(-1).fillna(1)
-            df.loc[df["division"] < 1.5, "division"] = pd.NA
-            df = df.bfill().fillna(1)
-            df['commonStockSharesOutstanding'] = df['commonStockSharesOutstanding'] * df['division'].round()
+            
+            while(df['division'] > 1.5).any():
+                df['division'] = df['division'].shift(-1).fillna(1)
+                df.loc[df["division"] < 1.5, "division"] = pd.NA
+                df = df.bfill().fillna(1)
+                df['commonStockSharesOutstanding'] = df['commonStockSharesOutstanding'] * df['division'].round()
+                df['division'] = df['commonStockSharesOutstanding'].div(df['commonStockSharesOutstanding'].shift(1))
+                
             df = df.set_index('endDate')['commonStockSharesOutstanding']
             df = df.asfreq('D', method='ffill')  # .interpolate(method='values', limit_direction='forward')
 
