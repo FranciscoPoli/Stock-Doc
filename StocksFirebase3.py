@@ -243,7 +243,7 @@ if ticker != "":
     while(sharesoutstanding['division'] > 1.5).any():
         sharesoutstanding['division'] = sharesoutstanding['division'].shift(-1).fillna(1)
         sharesoutstanding.loc[sharesoutstanding["division"] < 1.5, "division"] = pd.NA
-        if not quarter:
+        if not quarter and i<length(split_multiplier):
             sharesoutstanding.loc[sharesoutstanding["division"] > 1.5, "division"] = split_multiplier[i]
             i = i + 1
         
